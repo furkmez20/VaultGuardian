@@ -1,0 +1,43 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.swp
+*.swo
+*.bak
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Flask & web stuff
+instance/
+*.sqlite3
+*.db
+*.log
+
+# Environment variables
+.env
+.env.*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pytest / coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# MySQL / PostgreSQL dumps (optional)
+*.sql
