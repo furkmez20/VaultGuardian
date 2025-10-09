@@ -138,7 +138,7 @@ def setup_mfa():
     return render_template('setup_mfa.html', qr_code=qr_code, secret=user.mfa_secret, form=form, user=user)
 
 
-@app.route('/mfa', methods=['GET', 'POST'])
+@app.route('/setup_mfa', methods=['GET', 'POST'])
 def mfa_verify():
     if 'username' not in session:
         return redirect(url_for('login'))
