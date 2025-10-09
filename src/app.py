@@ -131,22 +131,24 @@ def setup_mfa():
         otp_input = form.otp_code.data
         if mfa_manager.verify_totp(user.mfa_secret, otp_input):
             session['mfa_verified'] = True
+            session.pop('setup_mfa', None)
             flash("MFA setup complete!", "success")
             return redirect(url_for("dashboard"))
         else:
             flash("Invalid code. Try again.", "error")
 
-    return render_template('setup_mfa.html', qr_code=qr_code, secret=user.mfa_secret, form=form, user=user)
+    return render_template('setup_mfa.html', qr_code=qr_code, secret=user.mfa_secret, form=form, user=user, is_setup=True)
 
 
-@app.route('/setup_mfa', methods=['GET', 'POST'])
+#@app.route('/setup_mfa', methods=['GET', 'POST'])
+@app.route('/mfa', methods=['GET', 'POST'])
 def mfa_verify():
     if 'username' not in session:
         return redirect(url_for('login'))
     
-    form = MFAForm()
     username = session['username']
     user = data_store.get_user(username)
+    form = MFAForm()
     
     if form.validate_on_submit():
         otp_code = form.otp_code.data
@@ -154,19 +156,19 @@ def mfa_verify():
         # Try TOTP first
         if mfa_manager.verify_totp(user.mfa_secret, otp_code):
             session['mfa_verified'] = True
-            session.pop('setup_mfa', None)
+            #session.pop('setup_mfa', None)
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         # Try email OTP if user has email
         elif user.email and mfa_manager.verify_email_otp(user.email, otp_code):
             session['mfa_verified'] = True
-            session.pop('setup_mfa', None)
+            #session.pop('setup_mfa', None)
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid OTP code.', 'error')
     
-    return render_template('mfa.html', form=form, user=user)
+    return render_template('setup_mfa.html', form=form, user=user, is_setup=False)
 
 @app.route('/send_email_otp', methods=['POST'])
 def send_email_otp():
@@ -187,8 +189,11 @@ def dashboard():
     
     username = session['username']
     credentials = data_store.get_credentials(username)
+
+    form = CredentialForm()
+    user = data_store.get_user(username) 
     
-    return render_template('dashboard.html', credentials=credentials)
+    return render_template('dashboard.html', credentials=credentials, form=form, user=user)
 
 @app.route('/add_credential', methods=['GET', 'POST'])
 def add_credential():

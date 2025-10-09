@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Two-Factor Authentication - Vault Guardian</title>
+    <title> Welcome to Vault Guardian</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -96,8 +96,8 @@
     <div class="vault-container">
         <div class="mfa-header">
             <i class="fas fa-mobile-alt"></i>
-            <h3 class="fw-bold mb-2">Two-Factor Authentication</h3>
-            <p class="text-muted small mb-0">Enter the 6-digit code from your authenticator app</p>
+            <h3 class="fw-bold mb-2">Dashboard</h3>
+            <!--<p class="text-muted small mb-0">Enter the 6-digit code from your authenticator app</p>-->
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -112,87 +112,32 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" id="mfaForm">
+        <form method="POST" id="credentialForm">
             {{ form.hidden_tag() }}
-            
-            <div class="mb-4">
-                {{ form.otp_code(class="form-control", placeholder="000000", maxlength="6", pattern="[0-9]{6}", inputmode="numeric") }}
-                {% if form.otp_code.errors %}
-                    <div class="text-danger small mt-2">
-                        {% for error in form.otp_code.errors %}{{ error }}{% endfor %}
-                    </div>
-                {% endif %}
+
+            <div class="mb-3">
+                {{ form.title(class="form-control", placeholder="Title") }}
             </div>
+            <div class="mb-3">
+                {{ form.username(class="form-control", placeholder="Username") }}
+            </div>
+            <div class="mb-3">
+                {{ form.password(class="form-control", placeholder="Password") }}
+            </div>
+            <div class="mb-3">
+                {{ form.url(class="form-control", placeholder="URL") }}
+            </div>
+            <div class="mb-3">
+                {{ form.notes(class="form-control", placeholder="Notes") }}
+            </div>
+            {{ form.credential_id }}
 
             <button type="submit" class="btn btn-vault mb-3">
-                <i class="fas fa-check me-2"></i>Verify Code
+                <i class="fas fa-check me-2"></i>Save Credential
             </button>
         </form>
 
-        {% if user.email %}
-        <div class="mfa-options">
-            <p class="text-center text-muted small mb-3">Alternative verification method:</p>
-            <button type="button" class="btn btn-email" onclick="sendEmailOTP()">
-                <i class="fas fa-envelope me-2"></i>
-                <span class="email-text">Send Code to Email</span>
-                <span class="loading">
-                    <i class="fas fa-spinner fa-spin"></i> Sending...
-                </span>
-            </button>
-        </div>
-        {% endif %}
-
-        <div class="text-center mt-3">
-            <a href="{{ url_for('logout') }}" class="text-muted text-decoration-none small">
-                <i class="fas fa-arrow-left me-1"></i>Back to Login
-            </a>
-        </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Auto-submit form when 6 digits are entered
-        document.getElementById('{{ form.otp_code.id }}').addEventListener('input', function(e) {
-            if (e.target.value.length === 6) {
-                setTimeout(() => {
-                    document.getElementById('mfaForm').submit();
-                }, 500);
-            }
-        });
-
-        async function sendEmailOTP() {
-            const button = event.target.closest('button');
-            const emailText = button.querySelector('.email-text');
-            const loading = button.querySelector('.loading');
-            
-            emailText.style.display = 'none';
-            loading.style.display = 'inline';
-            button.disabled = true;
-
-            try {
-                const response = await fetch('/send_email_otp', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('OTP sent to your email!');
-                } else {
-                    alert('Failed to send OTP. Please try again.');
-                }
-            } catch (error) {
-                alert('Error sending OTP. Please try again.');
-            } finally {
-                emailText.style.display = 'inline';
-                loading.style.display = 'none';
-                button.disabled = false;
-            }
-        }
-    </script>
 </body>
 </html>

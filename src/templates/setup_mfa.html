@@ -112,7 +112,9 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" id="mfaForm">
+        <form method="POST" 
+              action="{% if is_setup %}{{ url_for('setup_mfa') }}{% else %}{{ url_for('mfa_verify') }}{% endif %}"
+              id="mfaForm">
             {{ form.hidden_tag() }}
             
             <div class="mb-4">
