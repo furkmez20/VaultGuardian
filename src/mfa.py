@@ -1,4 +1,4 @@
-
+import time
 import pyotp
 import qrcode
 import io
@@ -64,13 +64,15 @@ class MFAManager:
             otp = self.generate_email_otp(email)
             msg = Message(
                 'Your Vault Guardian OTP',
-                sender='noreply@vaultguardian.com',
+                sender=self.mail.default_sender,
+                #sender='noreply@vaultguardian.com',
                 recipients=[email]
             )
             msg.body = f'Your one-time password is: {otp}\n\nThis code will expire in 5 minutes.'
             self.mail.send(msg)
             return True
-        except Exception:
+        except Exception as e:
+            print(f"[ERROR] Failed to send OTP email: {e}")
             return False
     
     def verify_email_otp(self, email: str, otp: str) -> bool:
