@@ -3,19 +3,22 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
+from flask_migrate import Migrate
 from wtforms import StringField, PasswordField, TextAreaField, HiddenField
+from database import db
+
 
 import os
 import json
 from dotenv import load_dotenv
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
-from .forms import MFAForm  # or wherever you define it
+from forms import MFAForm  # or wherever you define it
 
-from .models import JSONDataStore, Credential
-from .auth import AuthManager
-from .crypto import CryptoManager
-from .mfa import MFAManager
+from models import JSONDataStore, Credential
+from auth import AuthManager
+from crypto import CryptoManager
+from mfa import MFAManager
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +27,21 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
 app.config['WTF_CSRF_ENABLED'] = True
 
-# Mail configuration
+#db config 
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 
+    f'sqlite:///{os.path.join(basedir, "../data/vault.db")}')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# initialize extensions 
+db.init_app(app)
+migrate = Migrate(app, db)
+
+# create table 
+with app.app_context():
+    db.create_all()
+
+# mail config
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
@@ -331,4 +348,5 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True,
+            port=5001)
