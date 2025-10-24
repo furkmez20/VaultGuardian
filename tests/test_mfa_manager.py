@@ -1,4 +1,3 @@
-# tests/test_mfa.py
 import base64
 import time
 import importlib
@@ -14,7 +13,7 @@ def test_totp_roundtrip_with_class():
     assert mgr.verify_totp(secret, code) is True
 
 def test_email_otp_generate_verify_and_reuse_blocked():
-    mgr = MFAManager(mail_app=None)
+    mgr = MFAManager(mail_app=None)  # no SMTP
     email = "user@example.com"
     otp = mgr.generate_email_otp(email)
     assert len(otp) == 6 and otp.isdigit()
@@ -25,7 +24,7 @@ def test_email_otp_expiry():
     mgr = MFAManager(mail_app=None)
     email = "exp@example.com"
     _ = mgr.generate_email_otp(email)
-    mgr.email_otp_cache[email]["timestamp"] = time.time() - 400  # force expire
+    mgr.email_otp_cache[email]["timestamp"] = time.time() - 400  # > 300s
     assert mgr.verify_email_otp(email, mgr.email_otp_cache[email]["otp"]) is False
 
 def test_qr_code_is_base64_png():
