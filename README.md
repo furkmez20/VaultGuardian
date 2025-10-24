@@ -5,11 +5,14 @@ Quick start
 from the repo root
 # Create virtual enviroment
 python3 -m venv .venv
+
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 # Download python
 python -m pip install --upgrade pip
+
 pip install -r requirements.txt
+
 pip install pytest pytest-cov pyotp "qrcode[pil]" pillow cryptography python-dotenv
 
 # Generate Keys
