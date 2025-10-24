@@ -17,14 +17,22 @@ python generate_keys.py
 
 # Set up .env folder
 Paste keys from generate_keys here 
+
 Create a .env file in the project root:
+
 SECRET_KEY=your-super-secret-key
+
 ENCRYPTION_KEY=your-32-byte-base64-encoded-encryption-key
+
 # Setting up email otp
 MAIL_SERVER=smtp.gmail.com
+
 MAIL_PORT=587
+
 MAIL_USE_TLS=True
+
 MAIL_USERNAME=your-email@gmail.com
+
 MAIL_PASSWORD=your-gmail-app-password #get it from your Google MFA password
 
 
