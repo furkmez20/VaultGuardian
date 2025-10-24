@@ -3,24 +3,24 @@ VaultGuardian is a secure Flask-based password manager that encrypts credentials
 
 Quick start
 from the repo root
-#create a virtual enviroment
+# Create virtual enviroment
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-#Download python
+# Download python
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install pytest pytest-cov pyotp "qrcode[pil]" pillow cryptography python-dotenv
 
-#Generate Keys
+# Generate Keys
 python generate_keys.py
 
-#Set up .env folder
+# Set up .env folder
 Paste keys from generate_keys here 
 Create a .env file in the project root:
 SECRET_KEY=your-super-secret-key
 ENCRYPTION_KEY=your-32-byte-base64-encoded-encryption-key
-#steps for email otp
+# Setting up email otp
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USE_TLS=True
@@ -28,11 +28,11 @@ MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-gmail-app-password #get it from your Google MFA password
 
 
-#Run the database 
+# Run the database
 1. Run python3 "migrate_data.py" 
 2. Run **sqlite3 data/vault.db ** to see what information is stored in the database currently. Potential commands to test out include SELECT * FROM users;
 
-#Run the app
+# Run the App
 python app.py
 
 # Testing
@@ -47,6 +47,6 @@ Run tests
 full suite with coverage summary
 python -m pytest --cov=src --cov-report=term-missing
 
-#Future code 
+# Future code
 1. Connect the database to the login-page
 2. Connect the stored credentials to password manager 
