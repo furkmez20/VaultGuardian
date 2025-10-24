@@ -4,9 +4,11 @@ VaultGuardian is a secure Flask-based password manager that encrypts credentials
 # Testing
 
 Run the VaultGuardian test suite locally with a virtual environment. These tests use a temporary JSON file as the datastore and stub email sending, so they won’t touch real data or SMTP.
+
 Prerequisites
 Python 3.11+ (3.13 works too)
 git, pip
+
 Quick start
 from the repo root
 python3 -m venv .venv
