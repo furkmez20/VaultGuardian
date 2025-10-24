@@ -17,5 +17,5 @@ pip install -r requirements.txt
 pip install pytest pytest-cov pyotp "qrcode[pil]" pillow cryptography python-dotenv
 
 Run tests
-# full suite with coverage summary
+full suite with coverage summary
 python -m pytest --cov=src --cov-report=term-missing
