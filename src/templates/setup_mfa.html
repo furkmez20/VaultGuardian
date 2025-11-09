@@ -14,6 +14,7 @@
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
         }
         .vault-container {
             background: rgba(255, 255, 255, 0.95);
@@ -22,7 +23,7 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             padding: 2.5rem;
             width: 100%;
-            max-width: 400px;
+            max-width: 500px;
         }
         .mfa-header {
             text-align: center;
@@ -33,6 +34,71 @@
             font-size: 3rem;
             margin-bottom: 1rem;
         }
+        
+        /* QR Code Section - IMPORTANT! */
+        .qr-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .qr-code-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 15px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .qr-code-container img {
+            display: block;
+            max-width: 250px;
+            width: 100%;
+            height: auto;
+        }
+        .secret-key-box {
+            background: white;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .secret-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .secret-value {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #333;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            word-break: break-all;
+            user-select: all;
+        }
+        .setup-instructions {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .setup-instructions h5 {
+            color: #667eea;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        .setup-instructions ol {
+            padding-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+        .setup-instructions li {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
         .btn-vault {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
@@ -90,21 +156,43 @@
         .loading {
             display: none;
         }
+        .app-badge {
+            display: inline-block;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin: 3px;
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div class="vault-container">
         <div class="mfa-header">
-            <i class="fas fa-mobile-alt"></i>
-            <h3 class="fw-bold mb-2">Two-Factor Authentication</h3>
-            <p class="text-muted small mb-0">Enter the 6-digit code from your authenticator app</p>
+            <i class="fas fa-{% if is_setup %}qrcode{% else %}mobile-alt{% endif %}"></i>
+            <h3 class="fw-bold mb-2">
+                {% if is_setup %}
+                    Setup Two-Factor Authentication
+                {% else %}
+                    Two-Factor Authentication
+                {% endif %}
+            </h3>
+            <p class="text-muted small mb-0">
+                {% if is_setup %}
+                    Secure your account with an authenticator app
+                {% else %}
+                    Enter the 6-digit code from your authenticator app
+                {% endif %}
+            </p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'info-circle' }}"></i>
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -112,13 +200,64 @@
             {% endif %}
         {% endwith %}
 
+        {% if is_setup %}
+        <!-- QR CODE SECTION - Only shown during initial setup -->
+        <div class="qr-section">
+            <div class="setup-instructions">
+                <h5><i class="fas fa-mobile-alt me-2"></i>Setup Instructions:</h5>
+                <ol>
+                    <li>Download an authenticator app:
+                        <div class="mt-2">
+                            <span class="app-badge"><i class="fab fa-google"></i> Google Authenticator</span>
+                            <span class="app-badge"><i class="fas fa-shield-alt"></i> Authy</span>
+                            <span class="app-badge"><i class="fab fa-microsoft"></i> Microsoft Authenticator</span>
+                        </div>
+                    </li>
+                    <li>Open the app and tap <strong>"Add Account"</strong> or <strong>"+"</strong></li>
+                    <li>Scan the QR code below with your phone's camera</li>
+                    <li>Enter the 6-digit code shown in the app to complete setup</li>
+                </ol>
+            </div>
+
+            {% if qr_code %}
+            <div class="qr-code-container">
+                <img src="data:image/png;base64,{{ qr_code }}" alt="2FA QR Code">
+            </div>
+            {% else %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                QR Code failed to generate. Please use manual entry below.
+            </div>
+            {% endif %}
+
+            <div class="secret-key-box">
+                <div class="secret-label">
+                    <i class="fas fa-key me-1"></i>Can't scan? Enter this key manually:
+                </div>
+                <div class="secret-value">{{ secret }}</div>
+                <small class="text-muted d-block mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Choose "Time-based" when entering manually
+                </small>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- MFA VERIFICATION FORM -->
         <form method="POST" 
               action="{% if is_setup %}{{ url_for('setup_mfa') }}{% else %}{{ url_for('mfa_verify') }}{% endif %}"
               id="mfaForm">
             {{ form.hidden_tag() }}
             
             <div class="mb-4">
-                {{ form.otp_code(class="form-control", placeholder="000000", maxlength="6", pattern="[0-9]{6}", inputmode="numeric") }}
+                <label for="{{ form.otp_code.id }}" class="form-label small text-muted">
+                    {% if is_setup %}
+                        <i class="fas fa-mobile-alt me-1"></i>Enter code from your authenticator app:
+                    {% else %}
+                        <i class="fas fa-shield-alt me-1"></i>6-Digit Authentication Code:
+                    {% endif %}
+                </label>
+                {{ form.otp_code(class="form-control", placeholder="000000", maxlength="6", pattern="[0-9]{6}", inputmode="numeric", autocomplete="off") }}
                 {% if form.otp_code.errors %}
                     <div class="text-danger small mt-2">
                         {% for error in form.otp_code.errors %}{{ error }}{% endfor %}
@@ -127,13 +266,17 @@
             </div>
 
             <button type="submit" class="btn btn-vault mb-3">
-                <i class="fas fa-check me-2"></i>Verify Code
+                <i class="fas fa-{% if is_setup %}check{% else %}sign-in-alt{% endif %} me-2"></i>
+                {% if is_setup %}Complete Setup{% else %}Verify & Login{% endif %}
             </button>
         </form>
 
-        {% if user.email %}
+        {% if not is_setup and user.email %}
+        <!-- EMAIL OTP OPTION - Only shown during login, not setup -->
         <div class="mfa-options">
-            <p class="text-center text-muted small mb-3">Alternative verification method:</p>
+            <p class="text-center text-muted small mb-3">
+                <i class="fas fa-question-circle me-1"></i>Don't have access to your authenticator?
+            </p>
             <button type="button" class="btn btn-email" onclick="sendEmailOTP()">
                 <i class="fas fa-envelope me-2"></i>
                 <span class="email-text">Send Code to Email</span>
@@ -155,6 +298,9 @@
     <script>
         // Auto-submit form when 6 digits are entered
         document.getElementById('{{ form.otp_code.id }}').addEventListener('input', function(e) {
+            // Remove non-numeric characters
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            
             if (e.target.value.length === 6) {
                 setTimeout(() => {
                     document.getElementById('mfaForm').submit();
@@ -183,12 +329,13 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('OTP sent to your email!');
+                    alert('✅ OTP sent to your email! Check your inbox.');
                 } else {
-                    alert('Failed to send OTP. Please try again.');
+                    alert('❌ Failed to send OTP. ' + data.message);
                 }
             } catch (error) {
-                alert('Error sending OTP. Please try again.');
+                alert('❌ Error sending OTP. Please try again.');
+                console.error('Error:', error);
             } finally {
                 emailText.style.display = 'inline';
                 loading.style.display = 'none';

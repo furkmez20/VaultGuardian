@@ -70,7 +70,7 @@ class RegisterForm(FlaskForm):
         'Confirm Password',
         validators=[DataRequired(), EqualTo('password', message='Passwords must match')]
     )
-    email = StringField('Email', validators=[Email()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
 
 class MFAForm(FlaskForm):
     otp_code = StringField('OTP Code', validators=[DataRequired(), Length(min=6, max=6)])
@@ -104,6 +104,7 @@ def register():
             flash('Registration successful! Please set up MFA.', 'success')
             session['username'] = username
             session['setup_mfa'] = True
+            session['mfa_verified'] = False
             return redirect(url_for('setup_mfa'))
         else:
             flash('Username already exists.', 'error')
@@ -135,13 +136,20 @@ def login():
 
 @app.route('/setup_mfa', methods=['GET', 'POST'])
 def setup_mfa():
-    if 'username' not in session or not session.get('setup_mfa'):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    if not session.get('setup_mfa'):
         return redirect(url_for('login'))
 
     username = session['username']
     user = data_store.get_user(username)
+    
+    if not user:
+        return redirect(url_for('login'))
     form = MFAForm()
 
+    # Generate QR code
     qr_code = mfa_manager.generate_qr_code(username, user.mfa_secret)
 
     if form.validate_on_submit():
@@ -157,7 +165,6 @@ def setup_mfa():
     return render_template('setup_mfa.html', qr_code=qr_code, secret=user.mfa_secret, form=form, user=user, is_setup=True)
 
 
-#@app.route('/setup_mfa', methods=['GET', 'POST'])
 @app.route('/mfa', methods=['GET', 'POST'])
 def mfa_verify():
     if 'username' not in session:
@@ -348,5 +355,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True,
-            port=5001)
+    app.run(debug=True, port=5000)
