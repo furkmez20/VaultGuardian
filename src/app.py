@@ -1,24 +1,30 @@
+import os
+import csv
+import json
+import uuid
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
 from flask_migrate import Migrate
+
 from wtforms import StringField, PasswordField, TextAreaField, HiddenField
-from .database import db
-
-
-import os
-import json
-from dotenv import load_dotenv
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
-from .forms import MFAForm  # or wherever you define it
+from werkzeug.utils import secure_filename
 
+from dotenv import load_dotenv
+
+from cryptography.fernet import Fernet
+
+from .database import db
+from .forms import MFAForm
 from .models import JSONDataStore, Credential
 from .auth import AuthManager
 from .crypto import CryptoManager
 from .mfa import MFAManager
+
 
 # Load environment variables
 load_dotenv()
@@ -29,8 +35,12 @@ app.config['WTF_CSRF_ENABLED'] = True
 
 #db config 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 
-    f'sqlite:///{os.path.join(basedir, "../data/vault.db")}')
+DATA_DIR = os.path.join(basedir, "../data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    'DATABASE_URL', f'sqlite:///{os.path.join(DATA_DIR, "vault.db")}'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # initialize extensions 
@@ -57,6 +67,11 @@ mail = Mail(app)
 data_store = JSONDataStore()
 auth_manager = AuthManager(data_store)
 mfa_manager = MFAManager(mail)
+
+FERNET_KEY = os.getenv('FERNET_KEY')
+
+APP_CRYPTO_KEY = FERNET_KEY
+CRYPTO_MANAGER = CryptoManager(FERNET_KEY)
 
 # Forms
 class LoginForm(FlaskForm):
@@ -353,6 +368,71 @@ def logout():
     session.clear()
     flash('Logged out successfully.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/import_google_passwords', methods=['POST'])
+def import_google_passwords():
+    if 'username' not in session or not session.get('mfa_verified'):
+        return redirect(url_for('login'))
+
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        flash('No file selected. Please choose a CSV file.', 'error')
+        return redirect(url_for('dashboard'))
+
+    if not file.filename.endswith('.csv'):
+        flash('Invalid file type. Please upload a CSV file.', 'error')
+        return redirect(url_for('dashboard'))
+
+    username = session['username']
+    crypto = CryptoManager()
+    save_path = ""
+
+    try:
+        filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
+        save_path = os.path.join(DATA_DIR, filename)
+        file.save(save_path)
+
+        imported_count = failed_count = 0
+        with open(save_path, 'r', encoding='utf-8-sig', newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            if reader.fieldnames is None:
+                flash('CSV file appears empty.', 'error')
+                return redirect(url_for('dashboard'))
+
+            for row in reader:
+                try:
+                    title = (row.get('name') or row.get('Name') or 'Unnamed Site').strip()
+                    url = (row.get('url') or '').strip()
+                    uname = (row.get('username') or '').strip()
+                    passwd = (row.get('password') or '').strip()
+                    notes = (row.get('note') or 'Imported from Google Password Manager').strip()
+
+                    if not any([title, url, uname, passwd]):
+                        continue
+
+                    cred_data = {'username': uname, 'password': passwd, 'url': url, 'notes': notes}
+                    encrypted_data = crypto.encrypt_data(json.dumps(cred_data), APP_CRYPTO_KEY)
+
+                    if data_store.save_credential(username, Credential(title=title, encrypted_data=encrypted_data)):
+                        imported_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    failed_count += 1
+                    print(f"Error importing row: {e}")
+
+        if imported_count:
+            flash(f'Successfully imported {imported_count} credentials. {failed_count} failed.', 'success' if not failed_count else 'warning')
+        else:
+            flash('No credentials imported. Check CSV format.', 'error')
+
+    except Exception as e:
+        flash(f'Error processing CSV: {e}', 'error')
+    finally:
+        if save_path and os.path.exists(save_path):
+            os.unlink(save_path)
+
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
