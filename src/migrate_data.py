@@ -16,7 +16,7 @@ def migrate_json_to_database():
         print("starting migration")
         
         # changed path to see if that was the issue 
-        json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'vault.json')
+        json_path = os.path.join(os.path.dirname(__file__), "data", "vault.json")
         print(json_path)
         
         if not os.path.exists(json_path):

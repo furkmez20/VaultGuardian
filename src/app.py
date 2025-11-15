@@ -1,21 +1,19 @@
-
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
 from flask_migrate import Migrate
 from wtforms import StringField, PasswordField, TextAreaField, HiddenField
-from database import db
-
+from database import db, User, Credential
+from database_manager import DatabaseManager 
 
 import os
 import json
 from dotenv import load_dotenv
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
-from forms import MFAForm  # or wherever you define it
+from forms import MFAForm
 
-from models import JSONDataStore, Credential
 from auth import AuthManager
 from crypto import CryptoManager
 from mfa import MFAManager
@@ -27,21 +25,21 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
 app.config['WTF_CSRF_ENABLED'] = True
 
-#db config 
+# DB config 
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 
-    f'sqlite:///{os.path.join(basedir, "../data/vault.db")}')
+    f'sqlite:///{os.path.join(basedir, "data/vault.db")}')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# initialize extensions 
+# Initialize extensions 
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# create table 
+# Create tables 
 with app.app_context():
     db.create_all()
 
-# mail config
+# Mail config
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
@@ -54,8 +52,8 @@ csrf = CSRFProtect(app)
 mail = Mail(app)
 
 # Initialize managers
-data_store = JSONDataStore()
-auth_manager = AuthManager(data_store)
+db_manager = DatabaseManager()
+auth_manager = AuthManager()
 mfa_manager = MFAManager(mail)
 
 # Forms
@@ -132,8 +130,6 @@ def login():
     
     return render_template('login.html', form=form)
 
-
-
 @app.route('/setup_mfa', methods=['GET', 'POST'])
 def setup_mfa():
     if 'username' not in session:
@@ -143,10 +139,11 @@ def setup_mfa():
         return redirect(url_for('login'))
 
     username = session['username']
-    user = data_store.get_user(username)
+    user = db_manager.get_user_by_username(username)
     
     if not user:
         return redirect(url_for('login'))
+    
     form = MFAForm()
 
     # Generate QR code
@@ -164,14 +161,13 @@ def setup_mfa():
 
     return render_template('setup_mfa.html', qr_code=qr_code, secret=user.mfa_secret, form=form, user=user, is_setup=True)
 
-
 @app.route('/mfa', methods=['GET', 'POST'])
 def mfa_verify():
     if 'username' not in session:
         return redirect(url_for('login'))
     
     username = session['username']
-    user = data_store.get_user(username)
+    user = db_manager.get_user_by_username(username)
     form = MFAForm()
     
     if form.validate_on_submit():
@@ -180,13 +176,11 @@ def mfa_verify():
         # Try TOTP first
         if mfa_manager.verify_totp(user.mfa_secret, otp_code):
             session['mfa_verified'] = True
-            #session.pop('setup_mfa', None)
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         # Try email OTP if user has email
         elif user.email and mfa_manager.verify_email_otp(user.email, otp_code):
             session['mfa_verified'] = True
-            #session.pop('setup_mfa', None)
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         else:
@@ -199,7 +193,7 @@ def send_email_otp():
     if 'username' not in session:
         return jsonify({'success': False, 'message': 'Not logged in'})
     
-    user = data_store.get_user(session['username'])
+    user = db_manager.get_user_by_username(session['username'])
     if user and user.email:
         if mfa_manager.send_email_otp(user.email):
             return jsonify({'success': True, 'message': 'OTP sent to email'})
@@ -212,12 +206,36 @@ def dashboard():
         return redirect(url_for('login'))
     
     username = session['username']
-    credentials = data_store.get_credentials(username)
-
-    form = CredentialForm()
-    user = data_store.get_user(username) 
+    user = db_manager.get_user_by_username(username)
     
-    return render_template('dashboard.html', credentials=credentials, form=form, user=user)
+    if not user:
+        return redirect(url_for('login'))
+    
+    # Get credentials from database
+    credentials = Credential.query.filter_by(user_id=user.id).all()
+    
+    # Convert to list of dicts with decrypted data for display
+    credentials_list = []
+    crypto = CryptoManager()
+    for cred in credentials:
+        try:
+            decrypted_data = crypto.decrypt_data(cred.encrypted_data)
+            cred_dict = json.loads(decrypted_data)
+            credentials_list.append({
+                'id': str(cred.id),
+                'title': cred.title,
+                'username': cred_dict.get('username', ''),
+                'url': cred_dict.get('url', ''),
+                'created_at': cred.created_at,
+                'updated_at': cred.updated_at
+            })
+        except Exception as e:
+            print(f"Error decrypting credential {cred.id}: {e}")
+            continue
+    
+    form = CredentialForm()
+    
+    return render_template('dashboard.html', credentials=credentials_list, form=form, user=user)
 
 @app.route('/add_credential', methods=['GET', 'POST'])
 def add_credential():
@@ -227,6 +245,11 @@ def add_credential():
     form = CredentialForm()
     if form.validate_on_submit():
         username = session['username']
+        user = db_manager.get_user_by_username(username)
+        
+        if not user:
+            flash('User not found.', 'error')
+            return redirect(url_for('login'))
         
         # Create credential data
         cred_data = {
@@ -237,33 +260,38 @@ def add_credential():
         }
         
         # Encrypt credential data
-        user = data_store.get_user(username)
         crypto = CryptoManager()
         encrypted_data = crypto.encrypt_data(json.dumps(cred_data), None)
         
         # Create and save credential
         credential = Credential(
+            user_id=user.id,
             title=form.title.data,
-            encrypted_data=encrypted_data,
-            id=form.credential_id.data if form.credential_id.data else None
+            encrypted_data=encrypted_data
         )
         
-        if data_store.save_credential(username, credential):
-            flash('Credential saved successfully!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Failed to save credential.', 'error')
+        db.session.add(credential)
+        db.session.commit()
+        
+        flash('Credential saved successfully!', 'success')
+        return redirect(url_for('dashboard'))
     
     return render_template('add_credential.html', form=form)
 
-@app.route('/edit_credential/<credential_id>', methods=['GET', 'POST'])
+@app.route('/edit_credential/<int:credential_id>', methods=['GET', 'POST'])
 def edit_credential(credential_id):
     if 'username' not in session or not session.get('mfa_verified'):
         return redirect(url_for('login'))
     
     username = session['username']
-    credentials = data_store.get_credentials(username)
-    credential = next((c for c in credentials if c.id == credential_id), None)
+    user = db_manager.get_user_by_username(username)
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
+    
+    # Get credential from database with ownership check
+    credential = Credential.query.filter_by(id=credential_id, user_id=user.id).first()
     
     if not credential:
         flash('Credential not found.', 'error')
@@ -283,8 +311,9 @@ def edit_credential(credential_id):
             form.password.data = cred_data.get('password', '')
             form.url.data = cred_data.get('url', '')
             form.notes.data = cred_data.get('notes', '')
-            form.credential_id.data = credential_id
-        except Exception:
+            form.credential_id.data = str(credential_id)
+        except Exception as e:
+            print(f"Error decrypting: {e}")
             flash('Failed to decrypt credential.', 'error')
             return redirect(url_for('dashboard'))
     
@@ -300,41 +329,52 @@ def edit_credential(credential_id):
         crypto = CryptoManager()
         encrypted_data = crypto.encrypt_data(json.dumps(cred_data), None)
         
-        updated_credential = Credential(
-            title=form.title.data,
-            encrypted_data=encrypted_data,
-            id=credential_id
-        )
+        credential.title = form.title.data
+        credential.encrypted_data = encrypted_data
         
-        if data_store.save_credential(username, updated_credential):
-            flash('Credential updated successfully!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Failed to update credential.', 'error')
+        db.session.commit()
+        
+        flash('Credential updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
     
     return render_template('add_credential.html', form=form, editing=True)
 
-@app.route('/delete_credential/<credential_id>', methods=['POST'])
+@app.route('/delete_credential/<int:credential_id>', methods=['POST'])
 def delete_credential(credential_id):
     if 'username' not in session or not session.get('mfa_verified'):
         return redirect(url_for('login'))
     
     username = session['username']
-    if data_store.delete_credential(username, credential_id):
+    user = db_manager.get_user_by_username(username)
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
+    
+    # Delete with ownership check
+    credential = Credential.query.filter_by(id=credential_id, user_id=user.id).first()
+    if credential:
+        db.session.delete(credential)
+        db.session.commit()
         flash('Credential deleted successfully!', 'success')
     else:
         flash('Failed to delete credential.', 'error')
     
     return redirect(url_for('dashboard'))
 
-@app.route('/view_credential/<credential_id>')
+@app.route('/view_credential/<int:credential_id>')
 def view_credential(credential_id):
     if 'username' not in session or not session.get('mfa_verified'):
         return redirect(url_for('login'))
     
     username = session['username']
-    credentials = data_store.get_credentials(username)
-    credential = next((c for c in credentials if c.id == credential_id), None)
+    user = db_manager.get_user_by_username(username)
+    
+    if not user:
+        return jsonify({'error': 'User not found'})
+    
+    # Get credential with ownership check
+    credential = Credential.query.filter_by(id=credential_id, user_id=user.id).first()
     
     if not credential:
         return jsonify({'error': 'Credential not found'})
@@ -345,7 +385,8 @@ def view_credential(credential_id):
         cred_data = json.loads(decrypted_data)
         cred_data['title'] = credential.title
         return jsonify(cred_data)
-    except Exception:
+    except Exception as e:
+        print(f"Error decrypting: {e}")
         return jsonify({'error': 'Failed to decrypt credential'})
 
 @app.route('/logout')
