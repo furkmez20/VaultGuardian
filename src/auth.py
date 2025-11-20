@@ -1,7 +1,10 @@
 import bcrypt
 import time
 from typing import Optional
+
 from .models import User, JSONDataStore
+
+
 
 class AuthManager:
     def __init__(self, data_store: JSONDataStore):
