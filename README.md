@@ -40,8 +40,8 @@ MAIL_PASSWORD=your-gmail-app-password #get it from your Google MFA password
 
 
 # Run the database
-1. Run python3 "migrate_data.py" 
-2. Run **sqlite3 data/vault.db ** to see what information is stored in the database currently. Potential commands to test out include SELECT * FROM users;
+1. Navigate to /Users/aaryaamoharir/repos/VaultGuardian/src and Run python3 "migrate_data.py" 
+2. Navigate to /Users/aaryaamoharir/repos/VaultGuardian and run **sqlite3 data/vault.db ** to see what information is stored in the database currently. Potential commands to test out include SELECT * FROM users;
 
 # Run the App
 python app.py

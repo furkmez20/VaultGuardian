@@ -21,7 +21,7 @@
       "password_hash": "$2b$12$DxXvZL6yrb7gbDk0uLsE6unzYCp9FCXOd2fY0vVd7wMnbxdAWgkvy",
       "mfa_secret": "5YM4NWTRKFVID7GSW4KC2PN3RDUSPC6W",
       "email": "furkmez1@gmail.com",
-      "failed_attempts": 0,
+      "failed_attempts": 1,
       "locked_until": null
     },
     "Ezzah123": {
@@ -47,7 +47,28 @@
       "email": "ezzah.aq.094@gmail.com",
       "failed_attempts": 0,
       "locked_until": null
+    },
+    "yousefbali": {
+      "username": "yousefbali",
+      "password_hash": "$2b$12$CnAltf9L5NU/gCRUsFEp0u4U/5HZR5VjDCc41ydnYQUoOH/eA5QrC",
+      "mfa_secret": "MTAUFZXMZ6BVCTM5GAESLPRAO5CAUGBV",
+      "email": "yousefali0017@gmail.com",
+      "failed_attempts": 0,
+      "locked_until": null
     }
   },
-  "credentials": {}
+  "credentials": {
+    "yousefbali": [
+      {
+        "title": "Facebook",
+        "encrypted_data": "g_zcyPIccika4YEsQDjRXmdBQUFBQUJwR09CZUpZQW8tcWJ0N0VuZmxqWFFybFY4OGZpUFJoY003TVpRNlIxV242VC1TamhfREtoNnlHSjJBeFJvZDRPblMyR25uaXJWXzY3d21fUE9xRThqTkF6X3luRkd2cVduVGVsTmRvcWFpYUdJQXllS0F4RG9YV2JvcUtTY0hkelhLUG5OLTlmbUU4NzBNVURxemFzeFZqSXF2NUU4OE5ibTl3OUYtekZBS0xJOUhCYk85S0JEbmdmLUxKejZxbmJSVEJfVzJmMzhmYTBYZnUwU29LWjVwUmRPeGc9PQ==",
+        "id": "1763237982063"
+      },
+      {
+        "title": "Facebook2",
+        "encrypted_data": "DwUyVwNT3vVFVOKm6vquP2dBQUFBQUJwR09aVWtzeDBsMnRKZ016Q2ZhUzJVTXNQdlFuRG1jVmVIa0hsUEpzTFhWek12TzhEQTRna254d2YybTZva0kzZkhMeGxQYjVMbVJpNFNOWHFCcnVoYmNVSC1kQVhyMzZyQ2hSQUFHd0RxUHBiTC1YR2hnOGVVNWlnWWJjdlZRQURfVmp4UnA1YnJpbmFLaEpOaDFicHY0OU9GbDk3WlpVM3hMUWVVd0dRZjRYaGp1VHg4Q3dvaW9OSG95a3RlM1VkaFJGekcwYXliSGFxUmlZbi03UzhfWnd4Rmc9PQ==",
+        "id": "1763239508476"
+      }
+    ]
+  }
 }
