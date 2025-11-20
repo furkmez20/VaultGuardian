@@ -10,6 +10,8 @@ from flask_mail import Mail
 from flask_migrate import Migrate
 
 from wtforms import StringField, PasswordField, TextAreaField, HiddenField
+from database import db, User, Credential
+from database_manager import DatabaseManager 
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
 from werkzeug.utils import secure_filename
@@ -57,7 +59,7 @@ migrate = Migrate(app, db)
 with app.app_context():
     db.create_all()
 
-# mail config
+# Mail config
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
@@ -70,8 +72,8 @@ csrf = CSRFProtect(app)
 mail = Mail(app)
 
 # Initialize managers
-data_store = JSONDataStore()
-auth_manager = AuthManager(data_store)
+db_manager = DatabaseManager()
+auth_manager = AuthManager()
 mfa_manager = MFAManager(mail)
 
 FERNET_KEY = os.getenv('FERNET_KEY')
@@ -169,11 +171,12 @@ def setup_mfa():
         return redirect(url_for('login'))
 
     username = session['username']
-    user = data_store.get_user(username)
-
+    user = db_manager.get_user_by_username(username)
+    #user = data_store.get_user(username)
+    
     if not user:
         return redirect(url_for('login'))
-
+    
     form = MFAForm()
 
     # Generate QR code
@@ -192,14 +195,13 @@ def setup_mfa():
     return render_template('setup_mfa.html', qr_code=qr_code, secret=user.mfa_secret,
                            form=form, user=user, is_setup=True)
 
-
 @app.route('/mfa', methods=['GET', 'POST'])
 def mfa_verify():
     if 'username' not in session:
         return redirect(url_for('login'))
 
     username = session['username']
-    user = data_store.get_user(username)
+    user = db_manager.get_user_by_username(username)
     form = MFAForm()
 
     if form.validate_on_submit():
@@ -225,8 +227,8 @@ def mfa_verify():
 def send_email_otp():
     if 'username' not in session:
         return jsonify({'success': False, 'message': 'Not logged in'})
-
-    user = data_store.get_user(session['username'])
+    
+    user = db_manager.get_user_by_username(session['username'])
     if user and user.email:
         if mfa_manager.send_email_otp(user.email):
             return jsonify({'success': True, 'message': 'OTP sent to email'})
@@ -240,12 +242,38 @@ def dashboard():
         return redirect(url_for('login'))
 
     username = session['username']
-    credentials = data_store.get_credentials(username)
-
+    user = db_manager.get_user_by_username(username)
+    #credentials = data_store.get_credentials(username)
+    
+    if not user:
+        return redirect(url_for('login'))
+    
+    # Get credentials from database
+    credentials = Credential.query.filter_by(user_id=user.id).all()
+    
+    # Convert to list of dicts with decrypted data for display
+    credentials_list = []
+    crypto = CryptoManager()
+    for cred in credentials:
+        try:
+            decrypted_data = crypto.decrypt_data(cred.encrypted_data)
+            cred_dict = json.loads(decrypted_data)
+            credentials_list.append({
+                'id': str(cred.id),
+                'title': cred.title,
+                'username': cred_dict.get('username', ''),
+                'url': cred_dict.get('url', ''),
+                'created_at': cred.created_at,
+                'updated_at': cred.updated_at
+            })
+        except Exception as e:
+            print(f"Error decrypting credential {cred.id}: {e}")
+            continue
+    
     form = CredentialForm()
-    user = data_store.get_user(username)
-
-    return render_template('dashboard.html', credentials=credentials, form=form, user=user)
+    #user = data_store.get_user(username)
+    
+    return render_template('dashboard.html', credentials=credentials_list, form=form, user=user)
 
 
 @app.route('/add_credential', methods=['POST'])
@@ -254,7 +282,48 @@ def add_credential():
         return redirect(url_for('login'))
 
     form = CredentialForm()
-    if not form.validate_on_submit():
+    
+    # updating to using database instead of JSON
+    # however, process to check if credential is already stored is not here
+    if form.validate_on_submit():
+        username = session['username']
+        user = db_manager.get_user_by_username(username)
+        
+        if not user:
+            flash('User not found.', 'error')
+            return redirect(url_for('login'))
+        
+        # Create credential data
+        cred_data = {
+            'username': form.username.data,
+            'password': form.password.data,
+            'url': form.url.data,
+            'notes': form.notes.data
+        }
+        
+        # Encrypt credential data
+        crypto = CryptoManager()
+        encrypted_data = crypto.encrypt_data(json.dumps(cred_data), None)
+        
+        # Create and save credential
+        credential = Credential(
+            user_id=user.id,
+            title=form.title.data,
+            encrypted_data=encrypted_data
+        )
+        
+        db.session.add(credential)
+        db.session.commit()
+        
+        flash('Credential saved successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('add_credential.html', form=form)
+    
+    
+    # uses the JSON data storage method (not DB storage)
+    # But checks if credential was already stored
+   ''' if not form.validate_on_submit():
         flash('Please fill in the required fields.', 'error')
         return redirect(url_for('dashboard'))
 
@@ -292,19 +361,28 @@ def add_credential():
     else:
         flash('Failed to save credential.', 'error')
 
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('dashboard'))'''
 
 
 
-@app.route('/edit_credential/<credential_id>', methods=['GET', 'POST'])
+@app.route('/edit_credential/<int:credential_id>', methods=['GET', 'POST'])
 def edit_credential(credential_id):
     if 'username' not in session or not session.get('mfa_verified'):
         return redirect(url_for('login'))
 
     username = session['username']
-    credentials = data_store.get_credentials(username)
-    credential = next((c for c in credentials if c.id == credential_id), None)
-
+    user = db_manager.get_user_by_username(username)
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
+    
+    # Get credential from database with ownership check
+    credential = Credential.query.filter_by(id=credential_id, user_id=user.id).first()
+    
+    #credentials = data_store.get_credentials(username)
+    #credential = next((c for c in credentials if c.id == credential_id), None)
+    
     if not credential:
         flash('Credential not found.', 'error')
         return redirect(url_for('dashboard'))
@@ -323,8 +401,9 @@ def edit_credential(credential_id):
             form.password.data = cred_data.get('password', '')
             form.url.data = cred_data.get('url', '')
             form.notes.data = cred_data.get('notes', '')
-            form.credential_id.data = credential_id
-        except Exception:
+            form.credential_id.data = str(credential_id)
+        except Exception as e:
+            print(f"Error decrypting: {e}")
             flash('Failed to decrypt credential.', 'error')
             return redirect(url_for('dashboard'))
 
@@ -336,8 +415,24 @@ def edit_credential(credential_id):
             'url': form.url.data,
             'notes': form.notes.data
         }
+        
+        crypto = CryptoManager()
+        encrypted_data = crypto.encrypt_data(json.dumps(cred_data), None)
+        
+        credential.title = form.title.data
+        credential.encrypted_data = encrypted_data
+        
+        db.session.commit()
+        
+        flash('Credential updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('add_credential.html', form=form, editing=True)
 
-        crypto = CryptoManager(master_password=MASTER_PASSWORD)
+@app.route('/delete_credential/<int:credential_id>', methods=['POST'])
+
+# code with JSON storage
+    '''    crypto = CryptoManager(master_password=MASTER_PASSWORD)
         encrypted_data = crypto.encrypt_data(json.dumps(cred_data))
 
 
@@ -356,28 +451,47 @@ def edit_credential(credential_id):
     return render_template('add_credential.html', form=form, editing=True)
 
 
-@app.route('/delete_credential/<credential_id>', methods=['POST'])
+@app.route('/delete_credential/<credential_id>', methods=['POST'])'''
 def delete_credential(credential_id):
     if 'username' not in session or not session.get('mfa_verified'):
         return redirect(url_for('login'))
 
     username = session['username']
-    if data_store.delete_credential(username, credential_id):
+    user = db_manager.get_user_by_username(username)
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('login'))
+    
+    # Delete with ownership check
+    credential = Credential.query.filter_by(id=credential_id, user_id=user.id).first()
+    if credential:
+        db.session.delete(credential)
+        db.session.commit()
         flash('Credential deleted successfully!', 'success')
     else:
         flash('Failed to delete credential.', 'error')
 
     return redirect(url_for('dashboard'))
 
+@app.route('/view_credential/<int:credential_id>')
+#@app.route('/view_credential/<credential_id>')
 
-@app.route('/view_credential/<credential_id>')
 def view_credential(credential_id):
     if 'username' not in session or not session.get('mfa_verified'):
         return redirect(url_for('login'))
 
     username = session['username']
-    credentials = data_store.get_credentials(username)
-    credential = next((c for c in credentials if c.id == credential_id), None)
+    user = db_manager.get_user_by_username(username)
+    
+    if not user:
+        return jsonify({'error': 'User not found'})
+    
+    # Get credential with ownership check
+    credential = Credential.query.filter_by(id=credential_id, user_id=user.id).first()
+    
+    #credentials = data_store.get_credentials(username)
+    #credential = next((c for c in credentials if c.id == credential_id), None)
 
     if not credential:
         return jsonify({'error': 'Credential not found'})
@@ -389,7 +503,8 @@ def view_credential(credential_id):
         cred_data = json.loads(decrypted_data)
         cred_data['title'] = credential.title
         return jsonify(cred_data)
-    except Exception:
+    except Exception as e:
+        print(f"Error decrypting: {e}")
         return jsonify({'error': 'Failed to decrypt credential'})
 
 
