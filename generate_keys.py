@@ -13,15 +13,19 @@ print(f"SECRET_KEY={secret_key}")
 # Generate encryption key
 encryption_key = Fernet.generate_key().decode()
 print(f"ENCRYPTION_KEY={encryption_key}")
+print(f"FERNET_KEY={encryption_key}")
+
 
 print("=" * 50)
 print("📋 Copy these values to your .env file!")
 print("⚠️  Keep these keys secret and secure!")
 
 # Create a sample .env file
+# we can change the fernet key/make it a diffrent key later if we need too 
 env_content = f"""# Vault Guardian Environment Variables
 SECRET_KEY={secret_key}
 ENCRYPTION_KEY={encryption_key}
+FERNET_KEY={encryption_key} 
 
 # Email Configuration (Optional - for email OTP)
 MAIL_SERVER=smtp.gmail.com

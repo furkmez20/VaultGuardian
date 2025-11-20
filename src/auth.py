@@ -3,6 +3,10 @@ import time
 from typing import Optional
 from database import db, User
 
+from .models import User, JSONDataStore
+
+
+
 class AuthManager:
     def __init__(self):
         self.max_failed_attempts = 5
