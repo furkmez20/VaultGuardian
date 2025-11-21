@@ -66,7 +66,7 @@ auth_manager = AuthManager()
 mfa_manager = MFAManager(mail)
 
 
-# ---------- Forms ----------
+# forms
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
@@ -96,7 +96,7 @@ class CredentialForm(FlaskForm):
     credential_id = HiddenField()
 
 
-# ---------- Routes ----------
+# routes
 
 @app.route('/')
 def index():
@@ -282,7 +282,7 @@ def add_credential():
 
     title = form.title.data.strip()
 
-    # 🔁 Duplicate check, but now using DB instead of JSON
+    # Duplicate check
     existing_cred = Credential.query.filter_by(user_id=user.id, title=title).first()
     if existing_cred:
         flash('A credential with this title already exists. Please choose a different title.', 'error')
@@ -350,7 +350,7 @@ def edit_credential(credential_id):
             return redirect(url_for('dashboard'))
 
     if form.validate_on_submit():
-        # Optional: duplicate check when changing title
+        # Duplicate check when changing title
         new_title = form.title.data.strip()
         existing_cred = Credential.query.filter(
             Credential.user_id == user.id,
@@ -482,7 +482,7 @@ def import_google_passwords():
                     if not any([title, url_val, uname, passwd]):
                         continue
 
-                    # Optional: check duplicates by title for this user
+                    # Check duplicates by title for this user
                     existing_cred = Credential.query.filter_by(user_id=user.id, title=title).first()
                     if existing_cred:
                         failed_count += 1
