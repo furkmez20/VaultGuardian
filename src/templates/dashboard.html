@@ -14,6 +14,7 @@
       align-items: center;
       justify-content: center;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
     }
 
     .vault-container {
@@ -26,15 +27,62 @@
       max-width: 400px;
     }
 
-    .mfa-header {
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    /*.mfa-header {
       text-align: center;
       margin-bottom: 2rem;
       color: #5a67d8;
+    }*/
+
+    .mfa-header {
+      text-align: left;
+      color: #5a67d8;
+      margin: 0;
     }
 
-    .mfa-header i {
+    /*.mfa-header i {
       font-size: 3rem;
       margin-bottom: 1rem;
+    }*/
+
+    .mfa-header i {
+      font-size: 2rem;
+      margin-right: 0.5rem;
+    }
+
+    .mfa-header h3 {
+      display: inline-block;
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .btn-logout {
+      background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      padding: 10px 16px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-logout:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      color: white;
+      text-decoration: none;
     }
 
     .btn-vault {
@@ -102,14 +150,32 @@
     #csvFileInput {
       display: none;
     }
+
+    .form-section {
+      margin-bottom: 2rem;
+    }
+
+    .form-section h5 {
+      color: #5a67d8;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
   </style>
 </head>
 
 <body>
   <div class="vault-container">
-    <div class="mfa-header">
-      <i class="fas fa-mobile-alt"></i>
-      <h3 class="fw-bold mb-2">Dashboard</h3>
+    <!-- Header with title and logout button -->
+    <div class="dashboard-header">
+      <div class="mfa-header">
+        <i class="fas fa-mobile-alt"></i>
+        <h3 class="fw-bold mb-2">Dashboard</h3>
+      </div>
+      <a href="{{ url_for('logout') }}" class="btn btn-logout">
+        <i class="fas fa-sign-out-alt"></i>Logout
+      </a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -150,7 +216,7 @@
       </button>
     </form>
 
-    
+    <!-- Import Section -->
     <div class="import-section">
       <form method="POST" action="{{ url_for('import_google_passwords') }}" enctype="multipart/form-data" id="importForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
