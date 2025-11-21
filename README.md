@@ -17,20 +17,24 @@ pip install pytest pytest-cov pyotp "qrcode[pil]" pillow cryptography python-dot
 
 # Generate Keys
 In the root directory of Vault Guardian, find the generate_keys.py file
+
 Run the script: python generate_keys.py
 
 The script will output two keys:
 - SECRET_KEY= (a random string)
 - ENCRYPTION_KEY= (a 32-byte base64-encoded key)
-copy both keys
+
+Copy both keys
 
 # Set up .env folder
 In the root directory of Vault Guardian, create a file named .env
+
 If .env already exists, open it for editing
 
 Paste keys from generate_keys here: 
 
 SECRET_KEY=your-super-secret-key
+
 ENCRYPTION_KEY=your-32-byte-base64-encoded-encryption-key
 
 # Setting up email otp
@@ -61,21 +65,30 @@ Generating a Gmail App Password:
 Adding Configuration Variables in .env File:
 
 MAIL_SERVER=smtp.gmail.com
+
 MAIL_PORT=587
+
 MAIL_USE_TLS=True
+
 MAIL_USERNAME=your-email@gmail.com
+
 MAIL_PASSWORD=your-gmail-app-password #get it from your Google MFA password
 
 So your entire .env file should look like this;
-SECRET_KEY=your-secret-key-from-generate-keys.py
-ENCRYPTION_KEY=your-encryption-key-from-generate-keys.py
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-16-char-app-password
-DATABASE_URL=sqlite:///./data/vault.db
 
+SECRET_KEY=your-secret-key-from-generate-keys.py
+
+ENCRYPTION_KEY=your-encryption-key-from-generate-keys.py
+
+MAIL_SERVER=smtp.gmail.com
+
+MAIL_PORT=587
+
+MAIL_USE_TLS=True
+
+MAIL_USERNAME=your-email@gmail.com
+
+MAIL_PASSWORD=your-16-char-app-password
 
 # Run the database
 1. Navigate to /Users/aaryaamoharir/repos/VaultGuardian/src and Run python3 "migrate_data.py" 
