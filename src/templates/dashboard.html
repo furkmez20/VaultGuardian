@@ -124,7 +124,8 @@
       {% endif %}
     {% endwith %}
 
-    <form method="POST" id="credentialForm">
+    <form method="POST" action="{{ url_for('add_credential') }}" id="credentialForm">
+
       {{ form.hidden_tag() }}
 
       <div class="mb-3">
