@@ -2,7 +2,7 @@ import bcrypt
 import time
 from typing import Optional
 
-from database import db, User  # <-- use the SQLAlchemy User model, not the dataclass User
+from .database import db, User  # <-- use the SQLAlchemy User model, not the dataclass User
 
 
 class AuthManager:
