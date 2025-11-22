@@ -5,8 +5,8 @@ import json
 
 from sqlalchemy.exc import IntegrityError
 
-from .database import db, User, Credential
-from .crypto import CryptoManager
+from database import db, User, Credential
+from crypto import CryptoManager
 
 
  
