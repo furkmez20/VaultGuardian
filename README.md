@@ -91,8 +91,8 @@ MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-16-char-app-password
 
 # Run the database
-1. Navigate to /Users/aaryaamoharir/repos/VaultGuardian/src and Run python3 "migrate_data.py" 
-2. Navigate to /Users/aaryaamoharir/repos/VaultGuardian and run **sqlite3 data/vault.db ** to see what information is stored in the database currently. Potential commands to test out include SELECT * FROM users;
+1. Navigate to src folder and Run python3 "migrate_data.py" 
+2. Navigate to VaultGuardian root folder and run **sqlite3 data/vault.db ** to see what information is stored in the database currently. Potential commands to test out include SELECT * FROM users;
 
 # Run the App
 python app.py
