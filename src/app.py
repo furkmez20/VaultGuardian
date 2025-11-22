@@ -14,8 +14,8 @@ from wtforms.validators import DataRequired, Length, Email, EqualTo
 
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from database import db, User, Credential
 
-from .database import db, User, Credential
 from .database_manager import DatabaseManager
 from .auth import AuthManager
 from .crypto import CryptoManager
